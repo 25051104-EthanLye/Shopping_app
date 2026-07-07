@@ -1,7 +1,19 @@
 const express = require('express'); 
 const mysql = require('mysql2'); 
+const multer = require('multer');
 const app = express(); 
  
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'public/images'); // Specify the destination folder for uploaded images
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    }
+});
+const upload = multer({ storage: storage });
+
+
 // Create MySQL connection 
 const connection = mysql.createConnection({ 
     host: 'localhost', 
@@ -58,9 +70,15 @@ app.get('/product/:id', (req, res) => {
 app.get('/addProduct', (req, res) => {
   res.render('addProduct'); 
 });
-app.post('/addProduct', (req, res) => {
+app.post('/addProduct', upload.single('image'), (req, res) => {
   // Extract product data from the request body
-  const { name, quantity, price, image } = req.body;
+  const { name, quantity, price } = req.body;
+  let image = req.file ? req.file.filename : null; // Get the filename of the uploaded image
+  if (req.file) {
+    image = req.file.filename; // Get the filename of the uploaded image
+  } else {
+    image = null; // No image uploaded
+  }
   const sql = 'INSERT INTO products (productName, quantity, price, image) VALUES (?, ?, ?, ?)';
   // Insert the new product into the database
   connection.query( sql , [name, quantity, price, image], (error, results) => {
@@ -96,7 +114,11 @@ app.get('/editProduct/:id', (req, res) => {
 
 app.post('/editProduct/:id', (req, res) => {
   const productId = req.params.id;
-  const { name, quantity, price, image } = req.body;
+  const { name, quantity, price} = req.body;
+  let image = req.body.image; // Get the image URL from the form input
+    if (req.file) {
+        image = req.file.filename; // Get the filename of the uploaded image
+    }
   const sql = 'UPDATE products SET productName = ? , quantity = ?, price = ?, image = ? WHERE productId = ?';
   connection.query(sql, [name, quantity, price, image, productId], (error, results) => {
     if (error) {
